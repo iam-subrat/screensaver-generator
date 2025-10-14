@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 def fit_and_pad_image_to_size(
@@ -130,3 +130,130 @@ def apply_image_to_video(
 # Example usage (commented out):
 # if __name__ == '__main__':
 #     apply_image_to_video('generated-video.mp4', 'some_image.png', (494, 236, 783, 424), 'output.mp4')
+
+
+def find_largest_color_rectangle(
+    frame: np.ndarray,
+    target_color: np.ndarray,
+    tolerance: int = 40,
+    min_area: int = 1000,
+) -> Optional[Tuple[int, int, int, int]]:
+    """
+    Find the largest axis-aligned bounding rectangle for pixels close to target_color (BGR) in `frame`.
+    Returns (x_min, y_min, x_max, y_max) or None.
+    """
+    # Convert to HSV and perform hue-based matching for robustness to lighting
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    # Convert the target BGR color to HSV
+    tc_bgr = (
+        np.uint8([[target_color[::-1]]])
+        if isinstance(target_color, (tuple, list))
+        else np.uint8([[target_color[::-1]]])
+    )
+    tc_hsv = cv2.cvtColor(tc_bgr, cv2.COLOR_BGR2HSV)[0, 0]
+    th, ts, tv = int(tc_hsv[0]), int(tc_hsv[1]), int(tc_hsv[2])
+    # tolerance controls hue window; set reasonable sat/value thresholds
+    hue_tol = max(8, int(tolerance * 0.4))
+    sat_tol = max(40, int(tolerance * 0.6))
+    val_tol = max(40, int(tolerance * 0.6))
+
+    low1 = np.array(
+        [max(0, th - hue_tol), max(30, ts - sat_tol), max(30, tv - val_tol)]
+    )
+    high1 = np.array([min(179, th + hue_tol), 255, 255])
+    # handle hue wrap-around
+    if th - hue_tol < 0:
+        low2 = np.array(
+            [179 + (th - hue_tol), max(30, ts - sat_tol), max(30, tv - val_tol)]
+        )
+        high2 = np.array([179, 255, 255])
+        mask1 = cv2.inRange(hsv, low1, high1)
+        mask2 = cv2.inRange(hsv, low2, high2)
+        mask = cv2.bitwise_or(mask1, mask2)
+    elif th + hue_tol > 179:
+        low2 = np.array([0, max(30, ts - sat_tol), max(30, tv - val_tol)])
+        high2 = np.array([th + hue_tol - 180, 255, 255])
+        mask1 = cv2.inRange(hsv, low1, high1)
+        mask2 = cv2.inRange(hsv, low2, high2)
+        mask = cv2.bitwise_or(mask1, mask2)
+    else:
+        mask = cv2.inRange(hsv, low1, high1)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    max_area = 0
+    largest_rect = None
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = w * h
+        if area >= min_area and area > max_area:
+            max_area = area
+            largest_rect = (x, y, x + w - 1, y + h - 1)
+    return largest_rect
+
+
+def apply_image_to_video_per_frame(
+    video_path: str,
+    image_path: str,
+    target_color: Tuple[int, int, int],
+    out_path: str,
+    tolerance: int = 40,
+    min_area: int = 1000,
+):
+    """
+    For every frame in `video_path`, detect the largest region matching `target_color` and place
+    `image_path` resized & padded into that rectangle. The detection runs per-frame, so moving
+    or changing rectangles will be followed.
+    """
+    img = cv2.imread(image_path)
+    if img is None:
+        raise FileNotFoundError(f"Image not found: {image_path}")
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Video not found or cannot be opened: {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+
+    frame_idx = 0
+    last_rect = None
+    last_patch = None
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        rect = find_largest_color_rectangle(
+            frame,
+            np.array(target_color, dtype=np.uint8),
+            tolerance=tolerance,
+            min_area=min_area,
+        )
+        if rect is not None:
+            x_min, y_min, x_max, y_max = rect
+            rect_w = x_max - x_min + 1
+            rect_h = y_max - y_min + 1
+            # reuse last_patch if same size to save some work
+            if last_rect == (rect_w, rect_h) and last_patch is not None:
+                patch = last_patch
+            else:
+                patch = fit_and_pad_image_to_size(img, rect_w, rect_h)
+                last_patch = patch
+                last_rect = (rect_w, rect_h)
+            # place patch into frame
+            frame[y_min : y_max + 1, x_min : x_max + 1] = patch
+
+        out.write(frame)
+        frame_idx += 1
+
+    cap.release()
+    out.release()
+
+
+# End of file
