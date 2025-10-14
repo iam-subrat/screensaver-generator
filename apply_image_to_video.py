@@ -222,8 +222,19 @@ def apply_image_to_video_per_frame(
     out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
     frame_idx = 0
-    last_rect = None
+    # last_rect_float stores smoothed center_x, center_y, width, height as floats
+    last_rect_float = None
     last_patch = None
+    last_overlay_patch = None
+    missing_decay = 1.0
+
+    # Temporal smoothing and blending parameters
+    # smoothing_alpha: how fast to track new detections (1.0 = instant, lower = smoother)
+    # blend_alpha: when overlaying, weight of the current patch (1.0 = no blending, 0.0 = keep previous)
+    smoothing_alpha = 0.6
+    blend_alpha = 0.9
+    hold_when_missing = True
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -235,19 +246,120 @@ def apply_image_to_video_per_frame(
             tolerance=tolerance,
             min_area=min_area,
         )
+
         if rect is not None:
+            # reset missing decay when we have a detection
+            missing_decay = 1.0
+
             x_min, y_min, x_max, y_max = rect
             rect_w = x_max - x_min + 1
             rect_h = y_max - y_min + 1
-            # reuse last_patch if same size to save some work
-            if last_rect == (rect_w, rect_h) and last_patch is not None:
+            center_x = x_min + rect_w / 2.0
+            center_y = y_min + rect_h / 2.0
+
+            new_rect = np.array(
+                [center_x, center_y, float(rect_w), float(rect_h)], dtype=np.float32
+            )
+
+            if last_rect_float is None:
+                last_rect_float = new_rect.copy()
+            else:
+                # exponential smoothing
+                last_rect_float = (
+                    smoothing_alpha * new_rect
+                    + (1.0 - smoothing_alpha) * last_rect_float
+                )
+
+            # compute integer rectangle from smoothed float rect
+            cx, cy, w_f, h_f = last_rect_float
+            w_i = max(1, int(round(w_f)))
+            h_i = max(1, int(round(h_f)))
+            x_min_i = int(round(cx - w_i / 2.0))
+            y_min_i = int(round(cy - h_i / 2.0))
+            x_max_i = x_min_i + w_i - 1
+            y_max_i = y_min_i + h_i - 1
+
+            # ensure inside frame bounds
+            x_min_i = max(0, x_min_i)
+            y_min_i = max(0, y_min_i)
+            x_max_i = min(frame.shape[1] - 1, x_max_i)
+            y_max_i = min(frame.shape[0] - 1, y_max_i)
+
+            # recompute final width/height after clipping
+            final_w = x_max_i - x_min_i + 1
+            final_h = y_max_i - y_min_i + 1
+
+            # reuse patch if same size
+            if (
+                last_patch is not None
+                and last_patch.shape[1] == final_w
+                and last_patch.shape[0] == final_h
+            ):
                 patch = last_patch
             else:
-                patch = fit_and_pad_image_to_size(img, rect_w, rect_h)
+                patch = fit_and_pad_image_to_size(img, final_w, final_h)
                 last_patch = patch
-                last_rect = (rect_w, rect_h)
-            # place patch into frame
-            frame[y_min : y_max + 1, x_min : x_max + 1] = patch
+
+            # blending with previous overlay to reduce flicker
+            effective_blend = blend_alpha
+            if last_overlay_patch is not None:
+                # if sizes mismatch, reset previous overlay
+                if last_overlay_patch.shape[:2] != patch.shape[:2]:
+                    last_overlay_patch = None
+
+            if last_overlay_patch is not None:
+                # convert to float for blending
+                cur = patch.astype(np.float32)
+                prev = last_overlay_patch.astype(np.float32)
+                blended = (
+                    effective_blend * cur + (1.0 - effective_blend) * prev
+                ).astype(patch.dtype)
+                overlay = blended
+            else:
+                overlay = patch
+
+            # apply overlay to the frame region
+            frame[y_min_i : y_max_i + 1, x_min_i : x_max_i + 1] = overlay
+            last_overlay_patch = overlay
+        else:
+            # no detection in this frame
+            if (
+                hold_when_missing
+                and last_rect_float is not None
+                and last_patch is not None
+            ):
+                # gradually decay how strongly we keep showing the last patch
+                missing_decay *= 0.95
+                if missing_decay < 0.05:
+                    # stop showing after long absence
+                    last_overlay_patch = None
+                    # optionally: clear last_rect_float to require a fresh detection later
+                    # last_rect_float = None
+                else:
+                    # compute integer rectangle from last_rect_float and place last_overlay_patch with reduced alpha
+                    cx, cy, w_f, h_f = last_rect_float
+                    w_i = max(1, int(round(w_f)))
+                    h_i = max(1, int(round(h_f)))
+                    x_min_i = int(round(cx - w_i / 2.0))
+                    y_min_i = int(round(cy - h_i / 2.0))
+                    x_max_i = x_min_i + w_i - 1
+                    y_max_i = y_min_i + h_i - 1
+                    x_min_i = max(0, x_min_i)
+                    y_min_i = max(0, y_min_i)
+                    x_max_i = min(frame.shape[1] - 1, x_max_i)
+                    y_max_i = min(frame.shape[0] - 1, y_max_i)
+
+                    if last_overlay_patch is not None:
+                        # blend last overlay with the current frame using decay as alpha
+                        alpha = missing_decay
+                        over = last_overlay_patch.astype(np.float32)
+                        region = frame[
+                            y_min_i : y_max_i + 1, x_min_i : x_max_i + 1
+                        ].astype(np.float32)
+                        composited = (alpha * over + (1.0 - alpha) * region).astype(
+                            frame.dtype
+                        )
+                        frame[y_min_i : y_max_i + 1, x_min_i : x_max_i + 1] = composited
 
         out.write(frame)
         frame_idx += 1
