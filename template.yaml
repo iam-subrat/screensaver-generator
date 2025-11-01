@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: S3 bucket for video processing
+  WebhookBaseUrl:
+    Type: String
+    Description: Base URL for webhook notifications
+    Default: "http://localhost:8080"
+
+Resources:
+  VideoProcessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda_handler.lambda_handler
+      Runtime: python3.9
+      Timeout: 900
+      MemorySize: 3008
+      Environment:
+        Variables:
+          WEBHOOK_BASE_URL: !Ref WebhookBaseUrl
+          S3_BUCKET_NAME: !Ref S3BucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3BucketName
+        - S3WritePolicy:
+            BucketName: !Ref S3BucketName
+      Events:
+        ProcessVideo:
+          Type: Api
+          Properties:
+            Path: /process
+            Method: post
+
+Outputs:
+  VideoProcessingApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/process/"
+  VideoProcessingFunction:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt VideoProcessingFunction.Arn
