@@ -19,10 +19,13 @@ Resources:
       Runtime: python3.9
       Timeout: 900
       MemorySize: 3008
+      Layers:
+        - arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-p39-opencv-python:1
       Environment:
         Variables:
           WEBHOOK_BASE_URL: !Ref WebhookBaseUrl
           S3_BUCKET_NAME: !Ref S3BucketName
+          PYTHONPATH: /opt/python
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref S3BucketName

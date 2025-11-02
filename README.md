@@ -17,10 +17,20 @@ Set these secrets in your GitHub repository:
 ### Local Development
 
 ```bash
-pip install -r requirements.txt
+# Install development dependencies (includes OpenCV)
+pip install -r requirements-dev.txt
+
+# Build and test locally
 sam build
 sam local start-api
 ```
+
+### Lambda Layers
+
+This project uses AWS Lambda Layers for OpenCV to stay under the 250MB deployment limit:
+- **OpenCV Layer**: `arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-p39-opencv-python:1`
+- **Production requirements**: Only boto3 and requests (lightweight)
+- **Development requirements**: Full dependencies including OpenCV and Jupyter
 
 ### Deployment
 
