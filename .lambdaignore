@@ -16,3 +16,6 @@ node_modules/
 \*.tar.gz
 .venv/
 venv/
+*.ipynb
+.jupyter/
+.ipython/
