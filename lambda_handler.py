@@ -27,15 +27,25 @@ def lambda_handler(event, context):
     try:
         s3 = boto3.client("s3")
 
+        # Parse JSON body from API Gateway
+        if "body" in event:
+            body = (
+                json.loads(event["body"])
+                if isinstance(event["body"], str)
+                else event["body"]
+            )
+        else:
+            body = event
+
         # Extract parameters
         s3_bucket = os.environ.get("S3_BUCKET_NAME", "default-screensaver-assets")
-        video_key = event["video_s3_key"]
-        image_key = event["image_s3_key"]
-        output_key = event["output_s3_key"]
-        task_id = event["task_id"]
-        target_color = tuple(event.get("target_color", [255, 0, 0]))
-        tolerance = event.get("tolerance", 40)
-        min_area = event.get("min_area", 1000)
+        video_key = body["video_s3_key"]
+        image_key = body["image_s3_key"]
+        output_key = body["output_s3_key"]
+        task_id = body["task_id"]
+        target_color = tuple(body.get("target_color", [255, 0, 0]))
+        tolerance = body.get("tolerance", 40)
+        min_area = body.get("min_area", 1000)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Download video and image from S3
