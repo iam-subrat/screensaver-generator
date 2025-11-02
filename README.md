@@ -16,15 +16,20 @@ Set these secrets in your GitHub repository:
 
 ### Required IAM Permissions
 
-Add this permission to your IAM user policy:
+Your IAM user needs these permissions for deployment:
 
 ```json
 {
   "Effect": "Allow",
   "Action": [
-    "lambda:GetLayerVersion"
+    "cloudformation:*",
+    "s3:*",
+    "lambda:*",
+    "iam:*",
+    "apigateway:*",
+    "logs:*"
   ],
-  "Resource": "arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-p39-opencv-python:*"
+  "Resource": "*"
 }
 ```
 
@@ -41,14 +46,34 @@ sam local start-api
 
 ### Lambda Layers
 
-This project uses AWS Lambda Layers for OpenCV to stay under the 250MB deployment limit:
-- **OpenCV Layer**: `arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-p39-opencv-python:1`
+This project uses a custom AWS Lambda Layer for OpenCV to stay under the 250MB deployment limit:
+- **Custom OpenCV Layer**: Created from your S3 bucket during deployment
 - **Production requirements**: Only boto3 and requests (lightweight)
 - **Development requirements**: Full dependencies including OpenCV and Jupyter
 
 ### Deployment
 
-Push to main branch to trigger automatic deployment via GitHub Actions.
+#### Option 1: Automated (GitHub Actions)
+Push to main branch to trigger automatic deployment.
+
+#### Option 2: Manual with Custom Layer
+```bash
+# Set your S3 bucket name
+export S3_BUCKET_NAME=your-bucket-name
+
+# Deploy with custom OpenCV layer
+./deploy-with-layer.sh
+```
+
+#### Option 3: Manual Layer Creation
+```bash
+# Create layer manually
+./create-layer.sh
+
+# Then deploy normally
+sam build
+sam deploy
+```
 
 ## Usage
 
