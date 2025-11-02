@@ -11,6 +11,29 @@ Parameters:
     Default: "http://localhost:8080"
 
 Resources:
+  VideoProcessorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: .
+      DockerTag: python3.9-processor
+    Properties:
+      PackageType: Image
+      Timeout: 900
+      MemorySize: 3008
+      ImageConfig:
+        Command:
+          - processor_handler.lambda_handler
+      Environment:
+        Variables:
+          WEBHOOK_BASE_URL: !Ref WebhookBaseUrl
+          S3_BUCKET_NAME: !Ref S3BucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3BucketName
+        - S3WritePolicy:
+            BucketName: !Ref S3BucketName
+
   VideoProcessingFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -23,16 +46,19 @@ Resources:
       MemorySize: 3008
       ImageConfig:
         Command:
-          - lambda_handler.lambda_handler
+          - async_handler.lambda_handler
       Environment:
         Variables:
           WEBHOOK_BASE_URL: !Ref WebhookBaseUrl
           S3_BUCKET_NAME: !Ref S3BucketName
+          PROCESSOR_FUNCTION_NAME: !Ref VideoProcessorFunction
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref S3BucketName
         - S3WritePolicy:
             BucketName: !Ref S3BucketName
+        - LambdaInvokeFunction:
+            FunctionName: !Ref VideoProcessorFunction
       Events:
         ProcessVideo:
           Type: Api
