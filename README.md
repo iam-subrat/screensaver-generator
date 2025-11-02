@@ -44,35 +44,17 @@ sam build
 sam local start-api
 ```
 
-### Lambda Layers
-
-This project uses a custom AWS Lambda Layer for OpenCV to stay under the 250MB deployment limit:
-- **Custom OpenCV Layer**: Created from your S3 bucket during deployment
-- **Production requirements**: Only boto3 and requests (lightweight)
-- **Development requirements**: Full dependencies including OpenCV and Jupyter
-
 ### Deployment
 
-#### Option 1: Automated (GitHub Actions)
+This project uses Docker containers for Lambda deployment to include OpenCV without size limits.
+
+#### Automated (GitHub Actions)
 Push to main branch to trigger automatic deployment.
 
-#### Option 2: Manual with Custom Layer
+#### Manual Deployment
 ```bash
-# Set your S3 bucket name
-export S3_BUCKET_NAME=your-bucket-name
-
-# Deploy with custom OpenCV layer
-./deploy-with-layer.sh
-```
-
-#### Option 3: Manual Layer Creation
-```bash
-# Create layer manually
-./create-layer.sh
-
-# Then deploy normally
 sam build
-sam deploy
+sam deploy --guided
 ```
 
 ## Usage

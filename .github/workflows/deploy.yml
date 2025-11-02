@@ -39,6 +39,7 @@ jobs:
           --stack-name video-processing-stack \
           --s3-bucket ${{ secrets.SAM_DEPLOYMENT_BUCKET }} \
           --capabilities CAPABILITY_IAM \
+          --resolve-image-repos \
           --parameter-overrides \
             S3BucketName=${{ secrets.S3_BUCKET_NAME }} \
             WebhookBaseUrl=${{ secrets.WEBHOOK_BASE_URL }}

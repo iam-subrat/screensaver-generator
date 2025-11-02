@@ -11,33 +11,19 @@ Parameters:
     Default: "http://localhost:8080"
 
 Resources:
-  OpenCVLayer:
-    Type: AWS::Lambda::LayerVersion
-    Properties:
-      LayerName: opencv-python-layer
-      Description: OpenCV and NumPy for video processing
-      Content:
-        S3Bucket: !Ref S3BucketName
-        S3Key: layers/opencv-layer.zip
-      CompatibleRuntimes:
-        - python3.9
-
   VideoProcessingFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: .
-      Handler: lambda_handler.lambda_handler
-      Runtime: python3.9
+      PackageType: Image
       Timeout: 900
       MemorySize: 3008
-
-      Layers:
-        - !Ref OpenCVLayer
+      ImageConfig:
+        Command:
+          - lambda_handler.lambda_handler
       Environment:
         Variables:
           WEBHOOK_BASE_URL: !Ref WebhookBaseUrl
           S3_BUCKET_NAME: !Ref S3BucketName
-          PYTHONPATH: /opt/python
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref S3BucketName

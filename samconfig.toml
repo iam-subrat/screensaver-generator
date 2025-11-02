@@ -1,6 +1,5 @@
 version = 0.1
-[default]
-[default.deploy]
+
 [default.deploy.parameters]
 stack_name = "video-processing-stack"
 s3_bucket = "creative-asset-multipart"
@@ -8,4 +7,3 @@ s3_prefix = "artifacts"
 region = "ap-southeast-1"
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "S3BucketName=creative-asset-multipart WebhookBaseUrl=http://localhost:8080"
-image_repositories = []
