@@ -14,6 +14,20 @@ Set these secrets in your GitHub repository:
 - `S3_BUCKET_NAME`: S3 bucket for video processing files
 - `WEBHOOK_BASE_URL`: Base URL for webhook notifications
 
+### Required IAM Permissions
+
+Add this permission to your IAM user policy:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "lambda:GetLayerVersion"
+  ],
+  "Resource": "arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-p39-opencv-python:*"
+}
+```
+
 ### Local Development
 
 ```bash
