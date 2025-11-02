@@ -1,6 +1,5 @@
 """AWS Lambda handler for video processing."""
 
-import asyncio
 import json
 import logging
 import os
@@ -98,12 +97,9 @@ def lambda_handler(event, context):
         "min_area": 1000
     }
     """
-    start_time = time.time()
     logger.info(f"Processing request {context.aws_request_id}")
 
     try:
-        s3 = boto3.client("s3")
-
         # Parse JSON body from API Gateway
         if "body" in event:
             body = (

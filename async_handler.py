@@ -1,14 +1,8 @@
-"""Async wrapper for Lambda handler."""
+"""Handler wrapper."""
 
-import asyncio
-from lambda_handler import lambda_handler as async_lambda_handler
+from lambda_handler import lambda_handler as main_handler
 
 
 def lambda_handler(event, context):
-    """Sync wrapper for async Lambda handler."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(async_lambda_handler(event, context))
-    finally:
-        loop.close()
+    """Main Lambda handler."""
+    return main_handler(event, context)

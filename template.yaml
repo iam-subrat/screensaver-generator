@@ -57,8 +57,11 @@ Resources:
             BucketName: !Ref S3BucketName
         - S3WritePolicy:
             BucketName: !Ref S3BucketName
-        - LambdaInvokeFunction:
-            FunctionName: !Ref VideoProcessorFunction
+        - Statement:
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !GetAtt VideoProcessorFunction.Arn
       Events:
         ProcessVideo:
           Type: Api
