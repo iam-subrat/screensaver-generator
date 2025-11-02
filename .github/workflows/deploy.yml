@@ -41,5 +41,4 @@ jobs:
           --capabilities CAPABILITY_IAM \
           --parameter-overrides \
             S3BucketName=${{ secrets.S3_BUCKET_NAME }} \
-            WebhookBaseUrl=${{ secrets.WEBHOOK_BASE_URL }} \
-            OpenCVLayerArn=${{ secrets.OPENCV_LAYER_ARN }}
+            WebhookBaseUrl=${{ secrets.WEBHOOK_BASE_URL }}

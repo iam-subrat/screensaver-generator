@@ -7,5 +7,5 @@ s3_bucket = "creative-asset-multipart"
 s3_prefix = "artifacts"
 region = "ap-southeast-1"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = ""
+parameter_overrides = "S3BucketName=creative-asset-multipart WebhookBaseUrl=http://localhost:8080"
 image_repositories = []

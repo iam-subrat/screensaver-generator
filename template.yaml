@@ -9,10 +9,6 @@ Parameters:
     Type: String
     Description: Base URL for webhook notifications
     Default: "http://localhost:8080"
-  OpenCVLayerArn:
-    Type: String
-    Description: ARN of the OpenCV Lambda layer
-    Default: "arn:aws:lambda:ap-southeast-1:YOUR_ACCOUNT:layer:opencv-python-layer:1"
 
 Resources:
   OpenCVLayer:
