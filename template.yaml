@@ -9,8 +9,23 @@ Parameters:
     Type: String
     Description: Base URL for webhook notifications
     Default: "http://localhost:8080"
+  OpenCVLayerArn:
+    Type: String
+    Description: ARN of the OpenCV Lambda layer
+    Default: "arn:aws:lambda:ap-southeast-1:YOUR_ACCOUNT:layer:opencv-python-layer:1"
 
 Resources:
+  OpenCVLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: opencv-python-layer
+      Description: OpenCV and NumPy for video processing
+      Content:
+        S3Bucket: !Ref S3BucketName
+        S3Key: layers/opencv-layer.zip
+      CompatibleRuntimes:
+        - python3.9
+
   VideoProcessingFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -20,6 +35,8 @@ Resources:
       Timeout: 900
       MemorySize: 3008
 
+      Layers:
+        - !Ref OpenCVLayer
       Environment:
         Variables:
           WEBHOOK_BASE_URL: !Ref WebhookBaseUrl
